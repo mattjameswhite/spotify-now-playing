@@ -519,8 +519,8 @@
     bottom: 0; height: 50%;
     border-radius: 0 0 1cqmin 1cqmin;
     background: #181818;
-    transform-origin: top center;
-    transform: scaleY(0); /* truly invisible (0 height) at rest */
+    transform-origin: bottom center;
+    transform: scaleY(1); /* always covers static lower — shows same value at rest */
     z-index: 3;
   }
 
@@ -536,8 +536,8 @@
     100% { transform: rotateX(-90deg); box-shadow: 0 2cqmin 4cqmin rgba(0,0,0,0.7); }
   }
   @keyframes fdFlipLower {
-    0%   { transform: scaleY(0); }
-    100% { transform: scaleY(1); }
+    0%   { transform: scaleY(1); }
+    100% { transform: scaleY(0); }
   }
 
   /* Date line */
@@ -848,7 +848,8 @@ class FlipDigit {
     this.val = v;
 
     this.flipUpperS.textContent = prev; // flip-upper shows old value flipping away
-    this.flipLowerS.textContent = v;    // flip-lower shows new value coming in
+    this.flipLowerS.textContent = prev; // flip-lower covers static lower with old value
+    this.lower.textContent = v;         // static lower already has new value, hidden under cover
 
     this.flipUpper.classList.remove('is-flipping');
     this.flipLower.classList.remove('is-flipping');
@@ -859,9 +860,9 @@ class FlipDigit {
 
     setTimeout(() => { this.upper.textContent = v; }, 140);
     setTimeout(() => {
-      // Update lower and remove animation in the same frame so browser paints them together —
-      // static lower never shows through before fd-flip-lower has fully covered it
-      this.lower.textContent = v;
+      // Sync cover to new value before removing animation —
+      // when scaleY snaps back to 1 it shows same value as static lower, no flash
+      this.flipLowerS.textContent = v;
       this.flipUpper.classList.remove('is-flipping');
       this.flipLower.classList.remove('is-flipping');
       this.flipUpperS.textContent = v;
