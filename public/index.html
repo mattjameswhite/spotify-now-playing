@@ -452,21 +452,37 @@
     overflow: visible;
   }
 
-  /* Shared half-card */
+  /* All four half-cards */
   .fd-upper, .fd-lower, .fd-flip-upper, .fd-flip-lower {
     position: absolute;
     left: 0; right: 0;
     overflow: hidden;
     background: #1c1c1e;
-    display: flex;
-    justify-content: center;
   }
-  .fd-upper span, .fd-lower span,
-  .fd-flip-upper span, .fd-flip-lower span {
-    font-size: 14cqmin;
+
+  /* Spans always occupy the full card height so top/bottom halves clip at centre */
+  .fd-upper span, .fd-flip-upper span {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 16cqmin;       /* = full card height */
+    line-height: 16cqmin;  /* centres text at card midpoint */
+    text-align: center;
+    font-size: 13cqmin;
     font-weight: 700;
     color: #f0f0f0;
-    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
+  }
+  .fd-lower span, .fd-flip-lower span {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 16cqmin;       /* = full card height */
+    line-height: 16cqmin;  /* centres text so bottom half aligns with upper */
+    text-align: center;
+    font-size: 13cqmin;
+    font-weight: 700;
+    color: #f0f0f0;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
     letter-spacing: -0.02em;
@@ -475,41 +491,33 @@
   .fd-upper {
     top: 0; height: 50%;
     border-radius: 1cqmin 1cqmin 0 0;
-    align-items: flex-end;
     border-bottom: 2px solid #000;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05);
   }
-  .fd-upper span { transform: translateY(50%); }
 
   .fd-lower {
     bottom: 0; height: 50%;
     border-radius: 0 0 1cqmin 1cqmin;
-    align-items: flex-start;
     background: #181818;
   }
-  .fd-lower span { transform: translateY(-50%); }
 
   .fd-flip-upper {
     top: 0; height: 50%;
     border-radius: 1cqmin 1cqmin 0 0;
-    align-items: flex-end;
     transform-origin: center bottom;
     border-bottom: 2px solid #000;
     z-index: 3;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05);
   }
-  .fd-flip-upper span { transform: translateY(50%); }
 
   .fd-flip-lower {
     bottom: 0; height: 50%;
     border-radius: 0 0 1cqmin 1cqmin;
-    align-items: flex-start;
     background: #181818;
     transform-origin: center top;
     transform: rotateX(90deg);
     z-index: 3;
   }
-  .fd-flip-lower span { transform: translateY(-50%); }
 
   .fd-flip-upper.is-flipping {
     animation: fdFlipUpper 0.3s cubic-bezier(0.4,0,1,1) forwards;
