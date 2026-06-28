@@ -413,6 +413,21 @@
         <span class="opt-label">Pixel</span>
         <span class="opt-desc">64×64 crisp</span>
       </button>
+      <button class="option-btn" data-mode="led32">
+        <span class="opt-icon">💡</span>
+        <span class="opt-label">LED 32</span>
+        <span class="opt-desc">32×32 matrix</span>
+      </button>
+      <button class="option-btn" data-mode="led48">
+        <span class="opt-icon">💡</span>
+        <span class="opt-label">LED 48</span>
+        <span class="opt-desc">48×48 matrix</span>
+      </button>
+      <button class="option-btn" data-mode="led64">
+        <span class="opt-icon">💡</span>
+        <span class="opt-label">LED 64</span>
+        <span class="opt-desc">64×64 matrix</span>
+      </button>
     </div>
   </div>
 
@@ -468,8 +483,8 @@
 
 <script>
 // ── State ──
-const MODES = ['full', 'blocky', 'dither', 'pixel'];
-const MODE_LABELS = { full: 'Full', blocky: '32px', dither: 'Dither', pixel: '64px' };
+const MODES = ['full', 'led32', 'led48', 'led64', 'blocky', 'dither', 'pixel'];
+const MODE_LABELS = { full: 'Full', blocky: '32px', dither: 'Dither', pixel: '64px', led32: 'LED 32', led48: 'LED 48', led64: 'LED 64' };
 let state = {
   mode: 'full',
   bg: 'blur',
@@ -562,6 +577,9 @@ function renderMode() {
     case 'blocky': renderBlocky(size, 32); break;
     case 'dither': renderDither(size); break;
     case 'pixel':  renderBlocky(size, 64); break;
+    case 'led32':  renderLED(size, 32); break;
+    case 'led48':  renderLED(size, 48); break;
+    case 'led64':  renderLED(size, 64); break;
   }
 
   modeBadge.textContent = MODE_LABELS[state.mode];
@@ -634,6 +652,51 @@ function renderDither(size) {
 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(off, 0, 0, size, size);
+}
+
+function renderLED(size, res) {
+  const off = document.createElement('canvas');
+  off.width = res; off.height = res;
+  const oc = off.getContext('2d');
+  oc.imageSmoothingEnabled = true;
+  oc.imageSmoothingQuality = 'high';
+  oc.drawImage(state.sourceImg, 0, 0, res, res);
+  const px = oc.getImageData(0, 0, res, res).data;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, size, size);
+
+  const cell = size / res;
+  const dot  = cell * 0.4;   // dot radius — gap is the remaining ~20% each side
+  const glow = cell * 0.72;  // bloom radius
+
+  for (let y = 0; y < res; y++) {
+    for (let x = 0; x < res; x++) {
+      const i  = (y * res + x) * 4;
+      const r  = px[i], g = px[i+1], b = px[i+2];
+      const cx = (x + 0.5) * cell;
+      const cy = (y + 0.5) * cell;
+
+      // Soft bloom halo
+      const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, glow);
+      bloom.addColorStop(0,   `rgba(${r},${g},${b},0.45)`);
+      bloom.addColorStop(0.5, `rgba(${r},${g},${b},0.15)`);
+      bloom.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = bloom;
+      ctx.beginPath();
+      ctx.arc(cx, cy, glow, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core dot with bright highlight
+      const core = ctx.createRadialGradient(cx - dot * 0.25, cy - dot * 0.25, 0, cx, cy, dot);
+      core.addColorStop(0, `rgba(${Math.min(255,r+80)},${Math.min(255,g+80)},${Math.min(255,b+80)},1)`);
+      core.addColorStop(1, `rgba(${r},${g},${b},1)`);
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(cx, cy, dot, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 // ── Dominant colour extraction ──
