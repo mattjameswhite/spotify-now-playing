@@ -138,6 +138,44 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  #track-meta {
+    font-size: clamp(10px, 1.6vw, 12px);
+    color: rgba(255,255,255,0.25);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Progress bar ── */
+  #progress-wrap {
+    margin-top: 14px;
+    width: 100%;
+  }
+  #progress-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #progress-fill {
+    height: 100%;
+    background: rgba(255,255,255,0.7);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 1s linear;
+  }
+  #progress-time {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+  }
+  #progress-wrap.hidden { opacity: 0; pointer-events: none; }
 
   /* ── Landscape layout ── */
   @media (orientation: landscape) {
@@ -158,11 +196,11 @@
       flex: 1;
     }
     #track-title {
-      font-size: clamp(18px, 3.5vh, 36px);
+      font-size: clamp(18px, 3.5vh, 38px);
       white-space: normal;
     }
     #track-artist {
-      font-size: clamp(14px, 2.5vh, 24px);
+      font-size: clamp(14px, 2.5vh, 26px);
       white-space: normal;
       margin-top: 8px;
     }
@@ -171,6 +209,15 @@
       white-space: normal;
       margin-top: 6px;
     }
+    #track-meta {
+      font-size: clamp(11px, 1.6vh, 14px);
+      margin-top: 4px;
+    }
+    #progress-wrap {
+      margin-top: 24px;
+    }
+    #progress-bar { height: 4px; }
+    #progress-time { font-size: 11px; margin-top: 7px; }
   }
 
   /* ── Tap hint ── */
@@ -418,6 +465,11 @@
     <div id="track-title">Nothing playing</div>
     <div id="track-artist">Connect Spotify to begin</div>
     <div id="track-album"></div>
+    <div id="track-meta"></div>
+    <div id="progress-wrap" class="hidden">
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+      <div id="progress-time"><span id="progress-elapsed">0:00</span><span id="progress-total">0:00</span></div>
+    </div>
   </div>
 </div>
 
@@ -875,15 +927,64 @@ loadDemoArt();
 trackTitle.textContent  = state.title;
 trackArtist.textContent = state.artist;
 
+// ── Progress ticker ──
+const progressWrap    = document.getElementById('progress-wrap');
+const progressFill    = document.getElementById('progress-fill');
+const progressElapsed = document.getElementById('progress-elapsed');
+const progressTotal   = document.getElementById('progress-total');
+
+const prog = { progressMs: 0, durationMs: 0, isPlaying: false, syncedAt: 0, timer: null };
+
+function formatMs(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function renderProgress(currentMs, durationMs) {
+  const pct = durationMs > 0 ? Math.min(100, (currentMs / durationMs) * 100) : 0;
+  progressFill.style.width = pct + '%';
+  progressElapsed.textContent = formatMs(currentMs);
+  progressTotal.textContent   = formatMs(durationMs);
+}
+
+function startProgressTick() {
+  clearInterval(prog.timer);
+  prog.timer = setInterval(() => {
+    if (!prog.isPlaying) return;
+    const current = Math.min(prog.progressMs + (Date.now() - prog.syncedAt), prog.durationMs);
+    renderProgress(current, prog.durationMs);
+  }, 1000);
+}
+
+function syncProgress(progressMs, durationMs, isPlaying) {
+  prog.progressMs = progressMs;
+  prog.durationMs = durationMs;
+  prog.isPlaying  = isPlaying;
+  prog.syncedAt   = Date.now();
+  progressWrap.classList.toggle('hidden', !durationMs);
+  renderProgress(progressMs, durationMs);
+  startProgressTick();
+}
+
 // ── updateTrack — called by Spotify poller ──
 const trackAlbum = document.getElementById('track-album');
-function updateTrack(artUrl, title, artist, album) {
+const trackMeta  = document.getElementById('track-meta');
+
+function updateTrack(artUrl, title, artist, album, year, trackNum, totalTracks, durationMs, progressMs, isPlaying) {
   state.artUrl = artUrl;
   state.title  = title;
   state.artist = artist;
   trackTitle.textContent  = title;
   trackArtist.textContent = artist;
   trackAlbum.textContent  = album || '';
+
+  const metaParts = [];
+  if (year)      metaParts.push(year);
+  if (trackNum)  metaParts.push(`Track ${trackNum}${totalTracks ? ' of ' + totalTracks : ''}`);
+  trackMeta.textContent = metaParts.join(' · ');
+
+  if (durationMs) syncProgress(progressMs || 0, durationMs, isPlaying !== false);
 
   const img = new Image();
   img.crossOrigin = 'anonymous';
@@ -1048,17 +1149,25 @@ async function poll() {
     const data = await res.json();
     if (!data.item) return;
 
-    const trackId = data.item.id;
-    if (trackId === lastTrackId) return; // no change
+    const trackId     = data.item.id;
+    const title       = data.item.name;
+    const artist      = data.item.artists.map(a => a.name).join(', ');
+    const album       = data.item.album?.name;
+    const year        = data.item.album?.release_date?.slice(0, 4);
+    const trackNum    = data.item.track_number;
+    const totalTracks = data.item.album?.total_tracks;
+    const durationMs  = data.item.duration_ms;
+    const progressMs  = data.progress_ms;
+    const isPlaying   = data.is_playing;
+    const artUrl      = data.item.album?.images?.[0]?.url;
 
-    lastTrackId = trackId;
-
-    const title  = data.item.name;
-    const artist = data.item.artists.map(a => a.name).join(', ');
-    const album  = data.item.album?.name;
-    const artUrl = data.item.album?.images?.[0]?.url;
-
-    if (artUrl) updateTrack(artUrl, title, artist, album);
+    if (trackId !== lastTrackId && artUrl) {
+      lastTrackId = trackId;
+      updateTrack(artUrl, title, artist, album, year, trackNum, totalTracks, durationMs, progressMs, isPlaying);
+    } else {
+      // Same track — just resync progress position
+      syncProgress(progressMs, durationMs, isPlaying);
+    }
 
     spotifyStatus.textContent = 'Connected · polling';
   } catch (e) {
