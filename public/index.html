@@ -519,8 +519,8 @@
     bottom: 0; height: 50%;
     border-radius: 0 0 1cqmin 1cqmin;
     background: #181818;
-    transform-origin: bottom center;
-    transform: scaleY(1); /* always covers static lower — shows same value at rest */
+    transform-origin: top center;
+    transform: rotateX(90deg);
     z-index: 3;
   }
 
@@ -528,7 +528,7 @@
     animation: fdFlipUpper 0.3s cubic-bezier(0.4,0,1,1) forwards;
   }
   .fd-flip-lower.is-flipping {
-    animation: fdFlipLower 0.3s cubic-bezier(0,0,0.6,1) 0.15s forwards;
+    animation: fdFlipLower 0.12s cubic-bezier(0,0,0.6,1) 0.32s forwards;
   }
 
   @keyframes fdFlipUpper {
@@ -536,8 +536,8 @@
     100% { transform: rotateX(-90deg); box-shadow: 0 2cqmin 4cqmin rgba(0,0,0,0.7); }
   }
   @keyframes fdFlipLower {
-    0%   { transform: scaleY(1); }
-    100% { transform: scaleY(0); }
+    0%   { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
   }
 
   /* Date line */
@@ -847,26 +847,26 @@ class FlipDigit {
     const prev = this.val;
     this.val = v;
 
-    this.flipUpperS.textContent = prev; // flip-upper shows old value flipping away
-    this.flipLowerS.textContent = prev; // flip-lower covers static lower with old value
-    this.lower.textContent = v;         // static lower already has new value, hidden under cover
+    this.flipUpperS.textContent = prev; // upper flap shows OLD (falling away)
+    this.flipLowerS.textContent = v;    // lower flap shows NEW (swinging in from behind)
+    this.lower.textContent = prev;      // static lower shows OLD until flip lands
 
     this.flipUpper.classList.remove('is-flipping');
     this.flipLower.classList.remove('is-flipping');
-    void this.flipUpper.offsetWidth; // force reflow to restart animation
+    void this.flipUpper.offsetWidth;
 
     this.flipUpper.classList.add('is-flipping');
     this.flipLower.classList.add('is-flipping');
 
+    // Static upper shows NEW once upper flap has fallen (≈140ms)
     setTimeout(() => { this.upper.textContent = v; }, 140);
+    // Static lower shows NEW once lower flap has landed (320ms delay + 120ms anim = 440ms)
     setTimeout(() => {
-      // Sync cover to new value before removing animation —
-      // when scaleY snaps back to 1 it shows same value as static lower, no flash
-      this.flipLowerS.textContent = v;
+      this.lower.textContent = v;
       this.flipUpper.classList.remove('is-flipping');
       this.flipLower.classList.remove('is-flipping');
       this.flipUpperS.textContent = v;
-    }, 500);
+    }, 480);
   }
 }
 
