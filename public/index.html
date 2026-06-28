@@ -450,6 +450,7 @@
     height: 16cqmin;
     border-radius: 1cqmin;
     overflow: visible;
+    perspective: 320px;
   }
 
   /* All four half-cards */
@@ -1320,6 +1321,7 @@ function updateTrack(artUrl, title, artist, album, year, trackNum, totalTracks, 
     bgLayer.style.backgroundImage = `url(${artUrl})`;
     if (state.bg === 'blur') bgLayer.classList.add('visible');
     extractDominantColor(null);
+    resizeCanvas(); // ensure canvas matches current art-wrap dimensions before rendering
     renderMode();
     if (state.info === 'fade') showTrackInfo();
   };
