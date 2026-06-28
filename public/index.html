@@ -412,6 +412,133 @@
   }
   .toggle.on::after { transform: translateX(16px); }
 
+  /* ── Flip clock ── */
+  #clock-wrap {
+    position: absolute; inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #0d0d0d;
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+    gap: 20px;
+  }
+  #clock-wrap.visible { opacity: 1; }
+
+  #flip-clock {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .flip-group { display: flex; gap: 5px; }
+  .flip-sep {
+    font-size: 44px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.25);
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -2px;
+  }
+
+  .flip-digit {
+    position: relative;
+    width: 56px;
+    height: 80px;
+    border-radius: 7px;
+    overflow: visible;
+  }
+
+  /* Shared half-card */
+  .fd-upper, .fd-lower, .fd-flip-upper, .fd-flip-lower {
+    position: absolute;
+    left: 0; right: 0;
+    overflow: hidden;
+    background: #1c1c1e;
+    display: flex;
+    justify-content: center;
+  }
+  .fd-upper span, .fd-lower span,
+  .fd-flip-upper span, .fd-flip-lower span {
+    font-size: 58px;
+    font-weight: 700;
+    color: #f0f0f0;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    letter-spacing: -1px;
+  }
+
+  /* Static upper: top 50%, shows top half of digit */
+  .fd-upper {
+    top: 0; height: 50%;
+    border-radius: 7px 7px 0 0;
+    align-items: flex-end;
+    border-bottom: 1.5px solid #000;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04);
+  }
+  .fd-upper span { transform: translateY(50%); }
+
+  /* Static lower: bottom 50%, shows bottom half of digit */
+  .fd-lower {
+    bottom: 0; height: 50%;
+    border-radius: 0 0 7px 7px;
+    align-items: flex-start;
+    background: #181818;
+  }
+  .fd-lower span { transform: translateY(-50%); }
+
+  /* Animated flip-upper: covers upper half, rotates down on flip */
+  .fd-flip-upper {
+    top: 0; height: 50%;
+    border-radius: 7px 7px 0 0;
+    align-items: flex-end;
+    transform-origin: center bottom;
+    border-bottom: 1.5px solid #000;
+    z-index: 3;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04);
+  }
+  .fd-flip-upper span { transform: translateY(50%); }
+
+  /* Animated flip-lower: covers lower half, rotates up from flat */
+  .fd-flip-lower {
+    bottom: 0; height: 50%;
+    border-radius: 0 0 7px 7px;
+    align-items: flex-start;
+    background: #181818;
+    transform-origin: center top;
+    transform: rotateX(90deg);
+    z-index: 3;
+  }
+  .fd-flip-lower span { transform: translateY(-50%); }
+
+  .fd-flip-upper.is-flipping {
+    animation: fdFlipUpper 0.28s cubic-bezier(0.4,0,1,1) forwards;
+  }
+  .fd-flip-lower.is-flipping {
+    animation: fdFlipLower 0.28s cubic-bezier(0,0,0.6,1) 0.14s forwards;
+  }
+
+  @keyframes fdFlipUpper {
+    0%   { transform: rotateX(0deg);   box-shadow: 0 0 0 rgba(0,0,0,0); }
+    100% { transform: rotateX(-90deg); box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+  }
+  @keyframes fdFlipLower {
+    0%   { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+
+  /* Date line */
+  #flip-date {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.22);
+  }
+
   /* ── Connect modal ── */
   #connect-modal {
     position: fixed; inset: 0;
@@ -545,6 +672,25 @@
 <!-- Main stage -->
 <div id="stage">
   <div id="art-wrap">
+    <div id="clock-wrap">
+      <div id="flip-clock">
+        <div class="flip-group">
+          <div class="flip-digit" id="fd-h0"></div>
+          <div class="flip-digit" id="fd-h1"></div>
+        </div>
+        <div class="flip-sep">:</div>
+        <div class="flip-group">
+          <div class="flip-digit" id="fd-m0"></div>
+          <div class="flip-digit" id="fd-m1"></div>
+        </div>
+        <div class="flip-sep">:</div>
+        <div class="flip-group">
+          <div class="flip-digit" id="fd-s0"></div>
+          <div class="flip-digit" id="fd-s1"></div>
+        </div>
+      </div>
+      <div id="flip-date"></div>
+    </div>
     <canvas id="art-canvas"></canvas>
     <div id="mode-badge">Full</div>
   </div>
@@ -669,6 +815,92 @@
 </div>
 
 <script>
+// ── Flip clock ──
+class FlipDigit {
+  constructor(el) {
+    el.innerHTML = `
+      <div class="fd-upper"><span>0</span></div>
+      <div class="fd-lower"><span>0</span></div>
+      <div class="fd-flip-upper"><span>0</span></div>
+      <div class="fd-flip-lower"><span>0</span></div>`;
+    this.val        = '0';
+    this.upper      = el.querySelector('.fd-upper span');
+    this.lower      = el.querySelector('.fd-lower span');
+    this.flipUpper  = el.querySelector('.fd-flip-upper');
+    this.flipUpperS = el.querySelector('.fd-flip-upper span');
+    this.flipLower  = el.querySelector('.fd-flip-lower');
+    this.flipLowerS = el.querySelector('.fd-flip-lower span');
+  }
+  set(v) {
+    v = String(v);
+    if (v === this.val) return;
+    const prev = this.val;
+    this.val = v;
+
+    this.flipUpperS.textContent = prev;
+    this.flipLowerS.textContent = v;
+    this.lower.textContent = v;
+
+    this.flipUpper.classList.remove('is-flipping');
+    this.flipLower.classList.remove('is-flipping');
+    // Force reflow so removing then re-adding the class restarts animation
+    void this.flipUpper.offsetWidth;
+
+    this.flipUpper.classList.add('is-flipping');
+    this.flipLower.classList.add('is-flipping');
+
+    setTimeout(() => { this.upper.textContent = v; }, 140);
+    setTimeout(() => {
+      this.flipUpper.classList.remove('is-flipping');
+      this.flipLower.classList.remove('is-flipping');
+    }, 500);
+  }
+}
+
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const clockWrap = document.getElementById('clock-wrap');
+const flipDate  = document.getElementById('flip-date');
+const digits = {
+  h0: new FlipDigit(document.getElementById('fd-h0')),
+  h1: new FlipDigit(document.getElementById('fd-h1')),
+  m0: new FlipDigit(document.getElementById('fd-m0')),
+  m1: new FlipDigit(document.getElementById('fd-m1')),
+  s0: new FlipDigit(document.getElementById('fd-s0')),
+  s1: new FlipDigit(document.getElementById('fd-s1')),
+};
+let clockTimer = null;
+
+function tickClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  digits.h0.set(h[0]); digits.h1.set(h[1]);
+  digits.m0.set(m[0]); digits.m1.set(m[1]);
+  digits.s0.set(s[0]); digits.s1.set(s[1]);
+  flipDate.textContent = `${DAYS[now.getDay()]} · ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+function showClock() {
+  tickClock();
+  clockWrap.classList.add('visible');
+  clockTimer = setInterval(tickClock, 1000);
+  // Clear track text so nothing stale shows in the info panel
+  document.getElementById('track-title').textContent  = '';
+  document.getElementById('track-artist').textContent = '';
+  document.getElementById('track-album').textContent  = '';
+  document.getElementById('track-meta').textContent   = '';
+  document.getElementById('progress-wrap').classList.add('hidden');
+}
+
+function hideClock() {
+  clockWrap.classList.remove('visible');
+  clearInterval(clockTimer);
+  clockTimer = null;
+}
+
 // ── State ──
 const MODES = ['full', 'led32', 'led48', 'led64', 'blocky', 'dither', 'pixel'];
 const MODE_LABELS = { full: 'Full', blocky: '32px', dither: 'Dither', pixel: '64px', led32: 'LED 32', led48: 'LED 48', led64: 'LED 64' };
@@ -1010,9 +1242,7 @@ setTimeout(() => {
 }, 800);
 
 // ── Init ──
-loadDemoArt();
-trackTitle.textContent  = state.title;
-trackArtist.textContent = state.artist;
+showClock();
 
 // ── Progress ticker ──
 const progressWrap    = document.getElementById('progress-wrap');
@@ -1076,6 +1306,7 @@ function updateTrack(artUrl, title, artist, album, year, trackNum, totalTracks, 
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => {
+    hideClock();
     state.sourceImg = img;
     bgLayer.style.backgroundImage = `url(${artUrl})`;
     if (state.bg === 'blur') bgLayer.classList.add('visible');
@@ -1216,11 +1447,9 @@ async function poll() {
     });
 
     if (res.status === 204 || res.status === 200 && res.headers.get('content-length') === '0') {
-      // Nothing playing — leave art as-is, just clear text
       if (lastTrackId !== null) {
-        trackTitle.textContent  = 'Nothing playing';
-        trackArtist.textContent = '—';
         lastTrackId = null;
+        showClock();
       }
       return;
     }
