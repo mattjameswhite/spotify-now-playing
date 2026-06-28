@@ -69,6 +69,7 @@
     height: min(75vw, 75vh);
     flex-shrink: 0;
     border-radius: 6px;
+    container-type: size;
     overflow: hidden;
     box-shadow: 0 24px 80px rgba(0,0,0,0.7);
     transition: transform 0.15s ease, box-shadow 0.3s ease;
@@ -431,23 +432,23 @@
   #flip-clock {
     display: flex;
     align-items: center;
-    gap: 1.8vmin;
+    gap: 2cqmin;
   }
-  .flip-group { display: flex; gap: 0.6vmin; }
+  .flip-group { display: flex; gap: 0.8cqmin; }
   .flip-sep {
-    font-size: 7vmin;
+    font-size: 8cqmin;
     font-weight: 300;
     color: rgba(255,255,255,0.2);
     line-height: 1;
-    margin-bottom: 1vmin;
+    margin-bottom: 1.2cqmin;
     letter-spacing: -0.1em;
   }
 
   .flip-digit {
     position: relative;
-    width: 9vmin;
-    height: 13vmin;
-    border-radius: 0.8vmin;
+    width: 11cqmin;
+    height: 16cqmin;
+    border-radius: 1cqmin;
     overflow: visible;
   }
 
@@ -462,7 +463,7 @@
   }
   .fd-upper span, .fd-lower span,
   .fd-flip-upper span, .fd-flip-lower span {
-    font-size: 11.5vmin;
+    font-size: 14cqmin;
     font-weight: 700;
     color: #f0f0f0;
     line-height: 1;
@@ -471,29 +472,26 @@
     letter-spacing: -0.02em;
   }
 
-  /* Static upper: top 50%, shows top half of digit */
   .fd-upper {
     top: 0; height: 50%;
-    border-radius: 0.8vmin 0.8vmin 0 0;
+    border-radius: 1cqmin 1cqmin 0 0;
     align-items: flex-end;
     border-bottom: 2px solid #000;
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05);
   }
   .fd-upper span { transform: translateY(50%); }
 
-  /* Static lower: bottom 50%, shows bottom half of digit */
   .fd-lower {
     bottom: 0; height: 50%;
-    border-radius: 0 0 0.8vmin 0.8vmin;
+    border-radius: 0 0 1cqmin 1cqmin;
     align-items: flex-start;
     background: #181818;
   }
   .fd-lower span { transform: translateY(-50%); }
 
-  /* Animated flip-upper: covers upper half, rotates down on flip */
   .fd-flip-upper {
     top: 0; height: 50%;
-    border-radius: 0.8vmin 0.8vmin 0 0;
+    border-radius: 1cqmin 1cqmin 0 0;
     align-items: flex-end;
     transform-origin: center bottom;
     border-bottom: 2px solid #000;
@@ -502,10 +500,9 @@
   }
   .fd-flip-upper span { transform: translateY(50%); }
 
-  /* Animated flip-lower: covers lower half, rotates up from flat */
   .fd-flip-lower {
     bottom: 0; height: 50%;
-    border-radius: 0 0 0.8vmin 0.8vmin;
+    border-radius: 0 0 1cqmin 1cqmin;
     align-items: flex-start;
     background: #181818;
     transform-origin: center top;
@@ -523,7 +520,7 @@
 
   @keyframes fdFlipUpper {
     0%   { transform: rotateX(0deg);   box-shadow: 0 0 0 rgba(0,0,0,0); }
-    100% { transform: rotateX(-90deg); box-shadow: 0 1.5vmin 3vmin rgba(0,0,0,0.7); }
+    100% { transform: rotateX(-90deg); box-shadow: 0 2cqmin 4cqmin rgba(0,0,0,0.7); }
   }
   @keyframes fdFlipLower {
     0%   { transform: rotateX(90deg); }
@@ -532,7 +529,7 @@
 
   /* Date line */
   #flip-date {
-    font-size: 1.4vmin;
+    font-size: 1.8cqmin;
     font-weight: 500;
     letter-spacing: 0.14em;
     text-transform: uppercase;
