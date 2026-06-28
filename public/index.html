@@ -52,6 +52,7 @@
   /* ── Main stage ── */
   #stage {
     position: fixed; inset: 0;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -428,6 +429,17 @@
     gap: 20px;
   }
   #clock-wrap.visible { opacity: 1; }
+
+  /* Full-screen idle clock state */
+  body.clock-idle #bg-layer   { opacity: 0 !important; }
+  body.clock-idle #dominant-bg { opacity: 0 !important; }
+  body.clock-idle #art-wrap {
+    position: fixed; inset: 0; z-index: 2;
+    width: 100% !important; height: 100% !important;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  body.clock-idle #track-info { display: none; }
 
   #flip-clock {
     display: flex;
@@ -897,18 +909,16 @@ function tickClock() {
 }
 
 function showClock() {
+  document.body.classList.add('clock-idle');
+  bgLayer.classList.remove('visible');
   tickClock();
   clockWrap.classList.add('visible');
   clockTimer = setInterval(tickClock, 1000);
-  // Clear track text so nothing stale shows in the info panel
-  document.getElementById('track-title').textContent  = '';
-  document.getElementById('track-artist').textContent = '';
-  document.getElementById('track-album').textContent  = '';
-  document.getElementById('track-meta').textContent   = '';
   document.getElementById('progress-wrap').classList.add('hidden');
 }
 
 function hideClock() {
+  document.body.classList.remove('clock-idle');
   clockWrap.classList.remove('visible');
   clearInterval(clockTimer);
   clockTimer = null;
