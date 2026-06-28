@@ -873,6 +873,30 @@
 
   <div class="settings-divider"></div>
 
+  <!-- Idle clock timeout -->
+  <div class="settings-section">
+    <div class="settings-label">Idle Clock</div>
+    <div class="option-grid cols-1" id="idle-options">
+      <button class="option-btn" data-idle="10">
+        <span class="opt-label">After 10 minutes</span>
+      </button>
+      <button class="option-btn" data-idle="20">
+        <span class="opt-label">After 20 minutes</span>
+      </button>
+      <button class="option-btn" data-idle="30">
+        <span class="opt-label">After 30 minutes</span>
+      </button>
+      <button class="option-btn" data-idle="60">
+        <span class="opt-label">After 60 minutes</span>
+      </button>
+      <button class="option-btn active" data-idle="0">
+        <span class="opt-label">Off — keep showing track</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="settings-divider"></div>
+
   <!-- Spotify -->
   <div class="settings-section">
     <div class="settings-label">Spotify</div>
@@ -968,6 +992,7 @@ function hideClock() {
   clockWrap.classList.remove('visible');
   clearInterval(clockTimer);
   clockTimer = null;
+  resetIdleTimer();
 }
 
 // ── State ──
@@ -977,6 +1002,7 @@ let state = {
   mode: 'full',
   bg: 'blur',
   info: 'always',
+  idleTimeout: 0,
   artUrl: null,
   title: 'Rumours',
   artist: 'Fleetwood Mac',
@@ -1286,7 +1312,8 @@ function setupOptionGroup(containerId, stateKey, callback) {
   document.getElementById(containerId).addEventListener('click', (e) => {
     const btn = e.target.closest('.option-btn');
     if (!btn) return;
-    const val = btn.dataset[stateKey === 'mode' ? 'mode' : stateKey === 'bg' ? 'bg' : 'info'];
+    const raw = btn.dataset[stateKey];
+    const val = (stateKey === 'idleTimeout') ? Number(raw) : raw;
     state[stateKey] = val;
     document.querySelectorAll(`#${containerId} .option-btn`).forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -1297,6 +1324,7 @@ function setupOptionGroup(containerId, stateKey, callback) {
 setupOptionGroup('mode-options', 'mode', () => { renderMode(); });
 setupOptionGroup('bg-options', 'bg', () => { updateBackground(); });
 setupOptionGroup('info-options', 'info', () => { applyInfoSetting(); });
+setupOptionGroup('idle-options', 'idleTimeout', () => { resetIdleTimer(); });
 
 function syncModeButtons() {
   document.querySelectorAll('#mode-options .option-btn').forEach(b => {
@@ -1344,6 +1372,23 @@ function startProgressTick() {
   }, 1000);
 }
 
+// ── Idle timeout (show clock after N mins of paused/stopped) ──
+let idleTimer = null;
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  idleTimer = null;
+}
+
+function startIdleTimer() {
+  resetIdleTimer();
+  if (!state.idleTimeout) return;
+  idleTimer = setTimeout(() => {
+    showClock();
+    idleTimer = null;
+  }, state.idleTimeout * 60 * 1000);
+}
+
 function syncProgress(progressMs, durationMs, isPlaying) {
   prog.progressMs = progressMs;
   prog.durationMs = durationMs;
@@ -1352,6 +1397,11 @@ function syncProgress(progressMs, durationMs, isPlaying) {
   progressWrap.classList.toggle('hidden', !durationMs);
   renderProgress(progressMs, durationMs);
   startProgressTick();
+  if (isPlaying) {
+    resetIdleTimer();
+  } else {
+    startIdleTimer();
+  }
 }
 
 // ── updateTrack — called by Spotify poller ──
