@@ -519,8 +519,8 @@
     bottom: 0; height: 50%;
     border-radius: 0 0 1cqmin 1cqmin;
     background: #181818;
-    transform-origin: center top;
-    transform: rotateX(90deg); /* hidden at rest */
+    transform-origin: top center;
+    transform: scaleY(0); /* truly invisible (0 height) at rest */
     z-index: 3;
   }
 
@@ -536,8 +536,8 @@
     100% { transform: rotateX(-90deg); box-shadow: 0 2cqmin 4cqmin rgba(0,0,0,0.7); }
   }
   @keyframes fdFlipLower {
-    0%   { transform: rotateX(90deg); }
-    100% { transform: rotateX(0deg); }
+    0%   { transform: scaleY(0); }
+    100% { transform: scaleY(1); }
   }
 
   /* Date line */
