@@ -844,23 +844,24 @@ class FlipDigit {
     const prev = this.val;
     this.val = v;
 
-    this.flipUpperS.textContent = prev;
-    this.flipLowerS.textContent = v;
-    this.lower.textContent = v;
+    this.flipUpperS.textContent = prev; // flip-upper shows old value flipping away
+    this.flipLowerS.textContent = v;    // flip-lower shows new value coming in
 
     this.flipUpper.classList.remove('is-flipping');
     this.flipLower.classList.remove('is-flipping');
-    // Force reflow so removing then re-adding the class restarts animation
-    void this.flipUpper.offsetWidth;
+    void this.flipUpper.offsetWidth; // force reflow to restart animation
 
     this.flipUpper.classList.add('is-flipping');
     this.flipLower.classList.add('is-flipping');
 
+    // Static upper updates halfway through — covered by fd-flip-upper until animation ends
     setTimeout(() => { this.upper.textContent = v; }, 140);
+    // Static lower updates when fd-flip-lower finishes (150ms delay + 300ms duration)
+    setTimeout(() => { this.lower.textContent = v; }, 450);
     setTimeout(() => {
       this.flipUpper.classList.remove('is-flipping');
       this.flipLower.classList.remove('is-flipping');
-      this.flipUpperS.textContent = v; // keep in sync so next flip starts correctly
+      this.flipUpperS.textContent = v;
     }, 500);
   }
 }
