@@ -441,6 +441,31 @@
   }
   body.clock-idle #track-info { display: none; }
 
+  /* Scale up flip clock to fill the tablet in idle/landscape mode */
+  @media (orientation: landscape) {
+    body.clock-idle #flip-clock { gap: 3.5cqmin; }
+    body.clock-idle .flip-group { gap: 1.4cqmin; }
+    body.clock-idle .flip-sep   { font-size: 14cqmin; margin-bottom: 2.1cqmin; }
+    body.clock-idle .flip-digit {
+      width: 19cqmin; height: 28cqmin;
+      border-radius: 1.8cqmin;
+      perspective: 560px;
+    }
+    body.clock-idle .fd-upper span,
+    body.clock-idle .fd-flip-upper span {
+      height: 28cqmin; line-height: 28cqmin; font-size: 23cqmin;
+    }
+    body.clock-idle .fd-lower span,
+    body.clock-idle .fd-flip-lower span {
+      height: 28cqmin; line-height: 28cqmin; font-size: 23cqmin;
+    }
+    body.clock-idle .fd-upper      { border-radius: 1.8cqmin 1.8cqmin 0 0; }
+    body.clock-idle .fd-lower      { border-radius: 0 0 1.8cqmin 1.8cqmin; }
+    body.clock-idle .fd-flip-upper { border-radius: 1.8cqmin 1.8cqmin 0 0; }
+    body.clock-idle .fd-flip-lower { border-radius: 0 0 1.8cqmin 1.8cqmin; }
+    body.clock-idle #flip-date     { font-size: 3.2cqmin; }
+  }
+
   #flip-clock {
     display: flex;
     align-items: center;
