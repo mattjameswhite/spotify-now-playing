@@ -412,6 +412,82 @@
   }
   .toggle.on::after { transform: translateX(16px); }
 
+  /* ── Connect modal ── */
+  #connect-modal {
+    position: fixed; inset: 0;
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(12px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  #connect-modal.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+  #connect-card {
+    background: rgba(22,22,22,0.98);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: min(360px, 88vw);
+    text-align: center;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  }
+  #connect-card .modal-icon {
+    font-size: 48px;
+    line-height: 1;
+    margin-bottom: 20px;
+    display: block;
+  }
+  #connect-card h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  #connect-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+  #modal-connect-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #1db954;
+    color: #000;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+  }
+  #modal-connect-btn:hover { background: #1ed760; }
+  #modal-connect-btn:active { transform: scale(0.97); }
+  #modal-dismiss {
+    display: block;
+    margin-top: 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: var(--font);
+    transition: color 0.2s;
+  }
+  #modal-dismiss:hover { color: rgba(255,255,255,0.55); }
+
   /* Spotify connect button */
   .connect-btn {
     display: block;
@@ -447,6 +523,17 @@
 </style>
 </head>
 <body class="bg-blur">
+
+<!-- Connect modal -->
+<div id="connect-modal">
+  <div id="connect-card">
+    <span class="modal-icon">🎵</span>
+    <h2>Now Playing</h2>
+    <p>Connect your Spotify account to display album art and track info on this screen.</p>
+    <button id="modal-connect-btn">Connect Spotify</button>
+    <button id="modal-dismiss">Use demo mode</button>
+  </div>
+</div>
 
 <!-- Background layers -->
 <div id="bg-layer"></div>
@@ -1186,10 +1273,23 @@ function stopPolling() {
   lastTrackId = null;
 }
 
+// ── Connect modal ──
+const connectModal     = document.getElementById('connect-modal');
+const modalConnectBtn  = document.getElementById('modal-connect-btn');
+const modalDismissBtn  = document.getElementById('modal-dismiss');
+
+function showModal() { connectModal.classList.add('visible'); }
+function hideModal() { connectModal.classList.remove('visible'); }
+
+modalConnectBtn.addEventListener('click', () => { hideModal(); connectSpotify(); });
+modalDismissBtn.addEventListener('click', hideModal);
+
 // ── Startup ──
 if (Token.isConnected()) {
   updateSpotifyUI(true, 'Connected · starting…');
   startPolling();
+} else {
+  showModal();
 }
 </script>
 </body>
