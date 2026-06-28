@@ -1598,6 +1598,19 @@ document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.textContent = document.fullscreenElement ? '✕' : '⛶';
 });
 
+// ── Screen Wake Lock ──
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    await navigator.wakeLock.request('screen');
+  } catch (_) {}
+}
+acquireWakeLock();
+// Reacquire after tab becomes visible again (wake lock is auto-released on hide)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') acquireWakeLock();
+});
+
 // ── Startup ──
 if (Token.isConnected()) {
   updateSpotifyUI(true, 'Connected · starting…');
