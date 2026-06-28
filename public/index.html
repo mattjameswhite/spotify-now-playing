@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
 <title>Now Playing</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -586,6 +590,22 @@
     color: rgba(255,255,255,0.22);
   }
 
+  #fullscreen-btn {
+    position: absolute;
+    bottom: 3cqmin; right: 3cqmin;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.18);
+    font-size: 3cqmin;
+    cursor: pointer;
+    padding: 1cqmin;
+    line-height: 1;
+    transition: color 0.2s;
+    display: none;
+  }
+  #fullscreen-btn:hover { color: rgba(255,255,255,0.5); }
+  body.clock-idle #fullscreen-btn { display: block; }
+
   /* ── Connect modal ── */
   #connect-modal {
     position: fixed; inset: 0;
@@ -737,6 +757,7 @@
         </div>
       </div>
       <div id="flip-date"></div>
+      <button id="fullscreen-btn" title="Fullscreen">⛶</button>
     </div>
     <canvas id="art-canvas"></canvas>
     <div id="mode-badge">Full</div>
@@ -1561,6 +1582,20 @@ function hideModal() { connectModal.classList.remove('visible'); }
 
 modalConnectBtn.addEventListener('click', () => { hideModal(); connectSpotify(); });
 modalDismissBtn.addEventListener('click', hideModal);
+
+// ── Fullscreen ──
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+fullscreenBtn.addEventListener('click', e => { e.stopPropagation(); toggleFullscreen(); });
+document.addEventListener('fullscreenchange', () => {
+  fullscreenBtn.textContent = document.fullscreenElement ? '✕' : '⛶';
+});
 
 // ── Startup ──
 if (Token.isConnected()) {
