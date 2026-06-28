@@ -58,6 +58,8 @@
     justify-content: center;
     cursor: pointer;
     user-select: none;
+    padding: 24px;
+    gap: 28px;
   }
 
   /* ── Art container ── */
@@ -65,6 +67,7 @@
     position: relative;
     width: min(75vw, 75vh);
     height: min(75vw, 75vh);
+    flex-shrink: 0;
     border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 24px 80px rgba(0,0,0,0.7);
@@ -99,11 +102,12 @@
 
   /* ── Track info ── */
   #track-info {
-    margin-top: 28px;
+    margin-top: 0;
     text-align: center;
     max-width: min(75vw, 75vh);
     padding: 0 8px;
     transition: opacity 0.5s ease;
+    min-width: 0;
   }
   #track-info.hidden { opacity: 0; pointer-events: none; }
 
@@ -124,6 +128,49 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  #track-album {
+    font-size: clamp(11px, 2vw, 14px);
+    font-weight: 400;
+    color: rgba(255,255,255,0.35);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Landscape layout ── */
+  @media (orientation: landscape) {
+    #stage {
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      padding: 32px 64px;
+    }
+    #art-wrap {
+      width: min(78vh, 46vw);
+      height: min(78vh, 46vw);
+    }
+    #track-info {
+      text-align: left;
+      max-width: none;
+      flex: 1;
+    }
+    #track-title {
+      font-size: clamp(18px, 3.5vh, 36px);
+      white-space: normal;
+    }
+    #track-artist {
+      font-size: clamp(14px, 2.5vh, 24px);
+      white-space: normal;
+      margin-top: 8px;
+    }
+    #track-album {
+      font-size: clamp(12px, 2vh, 18px);
+      white-space: normal;
+      margin-top: 6px;
+    }
   }
 
   /* ── Tap hint ── */
@@ -370,6 +417,7 @@
   <div id="track-info">
     <div id="track-title">Nothing playing</div>
     <div id="track-artist">Connect Spotify to begin</div>
+    <div id="track-album"></div>
   </div>
 </div>
 
@@ -828,12 +876,14 @@ trackTitle.textContent  = state.title;
 trackArtist.textContent = state.artist;
 
 // ── updateTrack — called by Spotify poller ──
-function updateTrack(artUrl, title, artist) {
+const trackAlbum = document.getElementById('track-album');
+function updateTrack(artUrl, title, artist, album) {
   state.artUrl = artUrl;
   state.title  = title;
   state.artist = artist;
   trackTitle.textContent  = title;
   trackArtist.textContent = artist;
+  trackAlbum.textContent  = album || '';
 
   const img = new Image();
   img.crossOrigin = 'anonymous';
@@ -1005,9 +1055,10 @@ async function poll() {
 
     const title  = data.item.name;
     const artist = data.item.artists.map(a => a.name).join(', ');
+    const album  = data.item.album?.name;
     const artUrl = data.item.album?.images?.[0]?.url;
 
-    if (artUrl) updateTrack(artUrl, title, artist);
+    if (artUrl) updateTrack(artUrl, title, artist, album);
 
     spotifyStatus.textContent = 'Connected · polling';
   } catch (e) {
