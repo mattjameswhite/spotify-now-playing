@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Now Playing</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #000;
+    --overlay-bg: rgba(0,0,0,0.82);
+    --text-primary: #fff;
+    --text-secondary: rgba(255,255,255,0.55);
+    --accent: rgba(255,255,255,0.12);
+    --settings-width: 300px;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: var(--font);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* ── Background layer ── */
+  #bg-layer {
+    position: fixed; inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(40px) brightness(0.35) saturate(1.4);
+    transform: scale(1.1);
+    transition: background-image 1.2s ease, opacity 0.6s ease;
+    opacity: 0;
+  }
+  #bg-layer.visible { opacity: 1; }
+  body.bg-black #bg-layer { opacity: 0 !important; }
+  body.bg-dominant #bg-layer { opacity: 0 !important; }
+
+  #dominant-bg {
+    position: fixed; inset: 0;
+    transition: background-color 1.2s ease, opacity 0.6s ease;
+    opacity: 0;
+  }
+  body.bg-dominant #dominant-bg { opacity: 1; }
+
+  /* ── Main stage ── */
+  #stage {
+    position: fixed; inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* ── Art container ── */
+  #art-wrap {
+    position: relative;
+    width: min(75vw, 75vh);
+    height: min(75vw, 75vh);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+  }
+  #art-wrap:active { transform: scale(0.97); }
+
+  #art-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    transition: opacity 0.5s ease;
+  }
+
+  /* Mode badge */
+  #mode-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(0,0,0,0.6);
+    color: rgba(255,255,255,0.75);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 4px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  /* ── Track info ── */
+  #track-info {
+    margin-top: 28px;
+    text-align: center;
+    max-width: min(75vw, 75vh);
+    padding: 0 8px;
+    transition: opacity 0.5s ease;
+  }
+  #track-info.hidden { opacity: 0; pointer-events: none; }
+
+  #track-title {
+    font-size: clamp(15px, 3.5vw, 22px);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+  }
+  #track-artist {
+    font-size: clamp(12px, 2.5vw, 16px);
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Tap hint ── */
+  #tap-hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  /* ── Settings button ── */
+  #settings-btn {
+    position: fixed;
+    top: 20px; right: 20px;
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: background 0.2s, transform 0.2s;
+    z-index: 100;
+  }
+  #settings-btn:hover { background: rgba(255,255,255,0.15); }
+  #settings-btn:active { transform: scale(0.92); }
+  #settings-btn svg { width: 16px; height: 16px; fill: rgba(255,255,255,0.7); }
+
+  /* ── Settings panel ── */
+  #settings-panel {
+    position: fixed;
+    top: 0; right: 0;
+    width: var(--settings-width);
+    height: 100%;
+    background: rgba(14,14,14,0.97);
+    backdrop-filter: blur(20px);
+    border-left: 1px solid rgba(255,255,255,0.08);
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #settings-panel.open { transform: translateX(0); }
+
+  #settings-scrim {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 199;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s;
+  }
+  #settings-scrim.visible { opacity: 1; pointer-events: all; }
+
+  .settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .settings-header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  #settings-close {
+    width: 28px; height: 28px;
+    background: rgba(255,255,255,0.07);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.6);
+    font-size: 16px;
+    transition: background 0.2s;
+  }
+  #settings-close:hover { background: rgba(255,255,255,0.14); }
+
+  .settings-section {
+    padding: 20px 20px 0;
+  }
+  .settings-section:last-child { padding-bottom: 32px; }
+
+  .settings-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .option-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .option-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .option-grid.cols-1 { grid-template-columns: 1fr; }
+
+  .option-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 12px 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s, border-color 0.15s;
+    color: var(--text-secondary);
+    font-family: var(--font);
+  }
+  .option-btn:active { transform: scale(0.97); }
+  .option-btn.active {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.45);
+    color: var(--text-primary);
+  }
+  .option-btn .opt-icon {
+    font-size: 20px;
+    display: block;
+    margin-bottom: 6px;
+    line-height: 1;
+  }
+  .option-btn .opt-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    display: block;
+  }
+  .option-btn .opt-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    display: block;
+    line-height: 1.3;
+  }
+  .option-btn.active .opt-desc { color: rgba(255,255,255,0.45); }
+
+  .settings-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 20px 20px 0;
+  }
+
+  /* Toggle rows */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 400;
+  }
+  .toggle-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+  .toggle {
+    width: 40px; height: 24px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    border: none;
+  }
+  .toggle.on { background: #1db954; }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* Spotify connect button */
+  .connect-btn {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    background: #1db954;
+    color: #000;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .connect-btn:hover { background: #1ed760; }
+  .connect-btn:active { transform: scale(0.97); }
+  .connect-btn.disconnect {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+  }
+  .connect-btn.disconnect:hover { background: rgba(255,255,255,0.14); }
+  .connect-status {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 10px;
+  }
+  .connect-status.connected { color: #1db954; }
+</style>
+</head>
+<body class="bg-blur">
+
+<!-- Background layers -->
+<div id="bg-layer"></div>
+<div id="dominant-bg"></div>
+
+<!-- Settings scrim -->
+<div id="settings-scrim"></div>
+
+<!-- Main stage -->
+<div id="stage">
+  <div id="art-wrap">
+    <canvas id="art-canvas"></canvas>
+    <div id="mode-badge">Full</div>
+  </div>
+  <div id="track-info">
+    <div id="track-title">Nothing playing</div>
+    <div id="track-artist">Connect Spotify to begin</div>
+  </div>
+</div>
+
+<div id="tap-hint">Tap artwork to change style</div>
+
+<!-- Settings button -->
+<button id="settings-btn" aria-label="Settings">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08 0-.39-.03-.74-.07-1.08l2.32-1.81c.21-.16.27-.45.13-.69l-2.2-3.81c-.13-.24-.42-.32-.66-.24l-2.74 1.1c-.57-.44-1.18-.8-1.86-1.07l-.42-2.93A.532.532 0 0012 2h-4.4a.532.532 0 00-.53.45l-.42 2.93c-.68.27-1.29.63-1.86 1.07l-2.74-1.1c-.24-.08-.53 0-.66.24l-2.2 3.81c-.14.24-.08.53.13.69l2.32 1.81c-.04.34-.07.69-.07 1.08 0 .39.03.74.07 1.08L.46 14.58c-.21.16-.27.45-.13.69l2.2 3.81c.13.24.42.32.66.24l2.74-1.1c.57.44 1.18.8 1.86 1.07l.42 2.93c.08.46.49.78.97.78H12c.48 0 .89-.32.97-.78l.42-2.93c.68-.27 1.29-.63 1.86-1.07l2.74 1.1c.24.08.53 0 .66-.24l2.2-3.81c.13-.24.07-.53-.13-.69l-2.32-1.81z"/>
+  </svg>
+</button>
+
+<!-- Settings panel -->
+<div id="settings-panel">
+  <div class="settings-header">
+    <h2>Display Settings</h2>
+    <button id="settings-close">✕</button>
+  </div>
+
+  <!-- Art Style -->
+  <div class="settings-section">
+    <div class="settings-label">Art Style</div>
+    <div class="option-grid cols-2" id="mode-options">
+      <button class="option-btn active" data-mode="full">
+        <span class="opt-icon">🖼</span>
+        <span class="opt-label">Full art</span>
+        <span class="opt-desc">Original artwork</span>
+      </button>
+      <button class="option-btn" data-mode="blocky">
+        <span class="opt-icon">⬛</span>
+        <span class="opt-label">Blocky</span>
+        <span class="opt-desc">32×32 upscaled</span>
+      </button>
+      <button class="option-btn" data-mode="dither">
+        <span class="opt-icon">▒</span>
+        <span class="opt-label">Dithered</span>
+        <span class="opt-desc">Retro palette</span>
+      </button>
+      <button class="option-btn" data-mode="pixel">
+        <span class="opt-icon">🔲</span>
+        <span class="opt-label">Pixel</span>
+        <span class="opt-desc">64×64 crisp</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="settings-divider"></div>
+
+  <!-- Background -->
+  <div class="settings-section">
+    <div class="settings-label">Background</div>
+    <div class="option-grid cols-1" id="bg-options">
+      <button class="option-btn active" data-bg="blur">
+        <span class="opt-label">Blurred artwork</span>
+        <span class="opt-desc">Zoomed, blurred version of the album art</span>
+      </button>
+      <button class="option-btn" data-bg="black">
+        <span class="opt-label">Solid black</span>
+        <span class="opt-desc">Clean, minimal background</span>
+      </button>
+      <button class="option-btn" data-bg="dominant">
+        <span class="opt-label">Dominant colour</span>
+        <span class="opt-desc">Extracted from the album art</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="settings-divider"></div>
+
+  <!-- Track info -->
+  <div class="settings-section">
+    <div class="settings-label">Track Info</div>
+    <div class="option-grid cols-1" id="info-options">
+      <button class="option-btn active" data-info="always">
+        <span class="opt-label">Always visible</span>
+      </button>
+      <button class="option-btn" data-info="fade">
+        <span class="opt-label">Fade after 4 seconds</span>
+      </button>
+      <button class="option-btn" data-info="never">
+        <span class="opt-label">Never — art only</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="settings-divider"></div>
+
+  <!-- Spotify -->
+  <div class="settings-section">
+    <div class="settings-label">Spotify</div>
+    <button class="connect-btn" id="spotify-btn">Connect Spotify</button>
+    <div class="connect-status" id="spotify-status">Not connected · demo mode active</div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──
+const MODES = ['full', 'blocky', 'dither', 'pixel'];
+const MODE_LABELS = { full: 'Full', blocky: '32px', dither: 'Dither', pixel: '64px' };
+let state = {
+  mode: 'full',
+  bg: 'blur',
+  info: 'always',
+  artUrl: null,
+  title: 'Rumours',
+  artist: 'Fleetwood Mac',
+  sourceImg: null,
+  dominantColor: '#1a1a2e',
+  infoVisible: true,
+  infoTimer: null
+};
+
+// ── DOM refs ──
+const canvas     = document.getElementById('art-canvas');
+const ctx        = canvas.getContext('2d', { willReadFrequently: true });
+const bgLayer    = document.getElementById('bg-layer');
+const dominantBg = document.getElementById('dominant-bg');
+const modeBadge  = document.getElementById('mode-badge');
+const trackTitle = document.getElementById('track-title');
+const trackArtist= document.getElementById('track-artist');
+const trackInfo  = document.getElementById('track-info');
+const tapHint    = document.getElementById('tap-hint');
+const settingsBtn= document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const settingsClose = document.getElementById('settings-close');
+const scrim      = document.getElementById('settings-scrim');
+const body       = document.body;
+
+// ── Canvas sizing ──
+function resizeCanvas() {
+  const wrap = document.getElementById('art-wrap');
+  const size = wrap.offsetWidth;
+  canvas.width  = size;
+  canvas.height = size;
+  if (state.sourceImg) renderMode();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ── Load demo image ──
+function loadDemoArt() {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = 512; offscreen.height = 512;
+  const oc = offscreen.getContext('2d');
+
+  const grd = oc.createLinearGradient(0, 0, 512, 512);
+  grd.addColorStop(0,   '#2d1b69');
+  grd.addColorStop(0.4, '#11998e');
+  grd.addColorStop(1,   '#38ef7d');
+  oc.fillStyle = grd;
+  oc.fillRect(0, 0, 512, 512);
+
+  oc.beginPath();
+  oc.arc(256, 256, 160, 0, Math.PI * 2);
+  oc.fillStyle = 'rgba(255,255,255,0.08)';
+  oc.fill();
+
+  oc.beginPath();
+  oc.arc(256, 256, 100, 0, Math.PI * 2);
+  oc.fillStyle = 'rgba(255,255,255,0.12)';
+  oc.fill();
+
+  oc.fillStyle = 'rgba(255,255,255,0.85)';
+  oc.font = 'bold 48px system-ui';
+  oc.textAlign = 'center';
+  oc.textBaseline = 'middle';
+  oc.fillText('DEMO', 256, 256);
+
+  oc.font = '22px system-ui';
+  oc.fillStyle = 'rgba(255,255,255,0.5)';
+  oc.fillText('Connect Spotify for real art', 256, 320);
+
+  const img = new Image();
+  img.onload = () => {
+    state.sourceImg = img;
+    resizeCanvas();
+    updateBackground();
+    extractDominantColor(offscreen);
+  };
+  img.src = offscreen.toDataURL();
+}
+
+// ── Render modes ──
+function renderMode() {
+  const size = canvas.width;
+  ctx.clearRect(0, 0, size, size);
+
+  switch (state.mode) {
+    case 'full':   renderFull(size);   break;
+    case 'blocky': renderBlocky(size, 32); break;
+    case 'dither': renderDither(size); break;
+    case 'pixel':  renderBlocky(size, 64); break;
+  }
+
+  modeBadge.textContent = MODE_LABELS[state.mode];
+}
+
+function renderFull(size) {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(state.sourceImg, 0, 0, size, size);
+}
+
+function renderBlocky(size, res) {
+  const off = document.createElement('canvas');
+  off.width = res; off.height = res;
+  const oc = off.getContext('2d');
+  oc.imageSmoothingEnabled = false;
+  oc.drawImage(state.sourceImg, 0, 0, res, res);
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, size, size);
+}
+
+function renderDither(size) {
+  const res = 96;
+  const off = document.createElement('canvas');
+  off.width = res; off.height = res;
+  const oc = off.getContext('2d');
+  oc.drawImage(state.sourceImg, 0, 0, res, res);
+
+  const imageData = oc.getImageData(0, 0, res, res);
+  const data = imageData.data;
+
+  const bayer = [
+    [ 0,  8,  2, 10],
+    [12,  4, 14,  6],
+    [ 3, 11,  1,  9],
+    [15,  7, 13,  5]
+  ];
+
+  const palette = [
+    [0,0,0],[128,0,0],[0,128,0],[128,128,0],
+    [0,0,128],[128,0,128],[0,128,128],[192,192,192],
+    [128,128,128],[255,0,0],[0,255,0],[255,255,0],
+    [0,0,255],[255,0,255],[0,255,255],[255,255,255]
+  ];
+
+  function nearest(r, g, b) {
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < palette.length; i++) {
+      const dr = r - palette[i][0], dg = g - palette[i][1], db = b - palette[i][2];
+      const d = dr*dr + dg*dg + db*db;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return palette[best];
+  }
+
+  for (let y = 0; y < res; y++) {
+    for (let x = 0; x < res; x++) {
+      const i = (y * res + x) * 4;
+      const threshold = (bayer[y % 4][x % 4] / 16 - 0.5) * 48;
+      const r = Math.min(255, Math.max(0, data[i]   + threshold));
+      const g = Math.min(255, Math.max(0, data[i+1] + threshold));
+      const b = Math.min(255, Math.max(0, data[i+2] + threshold));
+      const [pr, pg, pb] = nearest(r, g, b);
+      data[i] = pr; data[i+1] = pg; data[i+2] = pb;
+    }
+  }
+
+  oc.putImageData(imageData, 0, 0);
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, size, size);
+}
+
+// ── Dominant colour extraction ──
+function extractDominantColor(sourceCanvas) {
+  const sample = document.createElement('canvas');
+  sample.width = 16; sample.height = 16;
+  const sc = sample.getContext('2d');
+  if (sourceCanvas) {
+    sc.drawImage(sourceCanvas, 0, 0, 16, 16);
+  } else {
+    sc.drawImage(state.sourceImg, 0, 0, 16, 16);
+  }
+  const d = sc.getImageData(0, 0, 16, 16).data;
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    r += d[i]; g += d[i+1]; b += d[i+2]; count++;
+  }
+  r = Math.round(r / count * 0.6);
+  g = Math.round(g / count * 0.6);
+  b = Math.round(b / count * 0.6);
+  state.dominantColor = `rgb(${r},${g},${b})`;
+  if (state.bg === 'dominant') {
+    dominantBg.style.backgroundColor = state.dominantColor;
+  }
+}
+
+// ── Background ──
+function updateBackground() {
+  body.className = 'bg-' + state.bg;
+  if (state.bg === 'blur' && state.artUrl) {
+    bgLayer.style.backgroundImage = `url(${state.artUrl})`;
+    bgLayer.classList.add('visible');
+  } else if (state.bg === 'blur' && state.sourceImg) {
+    bgLayer.style.backgroundImage = `url(${state.sourceImg.src})`;
+    bgLayer.classList.add('visible');
+  }
+  if (state.bg === 'dominant') {
+    dominantBg.style.backgroundColor = state.dominantColor;
+  }
+}
+
+// ── Track info visibility ──
+function showTrackInfo() {
+  trackInfo.classList.remove('hidden');
+  state.infoVisible = true;
+  if (state.info === 'fade') {
+    clearTimeout(state.infoTimer);
+    state.infoTimer = setTimeout(() => {
+      trackInfo.classList.add('hidden');
+      state.infoVisible = false;
+    }, 4000);
+  }
+}
+
+function applyInfoSetting() {
+  clearTimeout(state.infoTimer);
+  if (state.info === 'never') {
+    trackInfo.classList.add('hidden');
+  } else if (state.info === 'always') {
+    trackInfo.classList.remove('hidden');
+  } else if (state.info === 'fade') {
+    showTrackInfo();
+  }
+}
+
+// ── Stage tap — cycle mode ──
+document.getElementById('stage').addEventListener('click', (e) => {
+  if (settingsPanel.classList.contains('open')) return;
+  if (e.target.closest('#settings-btn')) return;
+
+  const idx = MODES.indexOf(state.mode);
+  state.mode = MODES[(idx + 1) % MODES.length];
+  renderMode();
+  syncModeButtons();
+
+  tapHint.style.opacity = '1';
+  clearTimeout(tapHint._timer);
+  tapHint._timer = setTimeout(() => tapHint.style.opacity = '0', 1800);
+
+  if (state.info === 'fade') showTrackInfo();
+});
+
+// ── Settings panel ──
+function openSettings() {
+  settingsPanel.classList.add('open');
+  scrim.classList.add('visible');
+}
+function closeSettings() {
+  settingsPanel.classList.remove('open');
+  scrim.classList.remove('visible');
+}
+settingsBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+settingsClose.addEventListener('click', closeSettings);
+scrim.addEventListener('click', closeSettings);
+
+// ── Option buttons ──
+function setupOptionGroup(containerId, stateKey, callback) {
+  document.getElementById(containerId).addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-btn');
+    if (!btn) return;
+    const val = btn.dataset[stateKey === 'mode' ? 'mode' : stateKey === 'bg' ? 'bg' : 'info'];
+    state[stateKey] = val;
+    document.querySelectorAll(`#${containerId} .option-btn`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    callback(val);
+  });
+}
+
+setupOptionGroup('mode-options', 'mode', () => { renderMode(); });
+setupOptionGroup('bg-options', 'bg', () => { updateBackground(); });
+setupOptionGroup('info-options', 'info', () => { applyInfoSetting(); });
+
+function syncModeButtons() {
+  document.querySelectorAll('#mode-options .option-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === state.mode);
+  });
+}
+
+// ── Hide tap hint initially ──
+tapHint.style.opacity = '0';
+setTimeout(() => {
+  tapHint.style.opacity = '1';
+  setTimeout(() => tapHint.style.opacity = '0', 3000);
+}, 800);
+
+// ── Init ──
+loadDemoArt();
+trackTitle.textContent  = state.title;
+trackArtist.textContent = state.artist;
+
+// ── updateTrack — called by Spotify poller ──
+function updateTrack(artUrl, title, artist) {
+  state.artUrl = artUrl;
+  state.title  = title;
+  state.artist = artist;
+  trackTitle.textContent  = title;
+  trackArtist.textContent = artist;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    state.sourceImg = img;
+    bgLayer.style.backgroundImage = `url(${artUrl})`;
+    if (state.bg === 'blur') bgLayer.classList.add('visible');
+    extractDominantColor(null);
+    renderMode();
+    if (state.info === 'fade') showTrackInfo();
+  };
+  img.src = artUrl;
+}
+window.updateTrack = updateTrack;
+</script>
+
+<!-- ── Spotify integration ── -->
+<script>
+const spotifyBtn    = document.getElementById('spotify-btn');
+const spotifyStatus = document.getElementById('spotify-status');
+
+const SCOPES = [
+  'user-read-currently-playing',
+  'user-read-playback-state'
+].join(' ');
+
+const POLL_INTERVAL = 5000;
+
+// ── Token helpers ──
+const Token = {
+  get() {
+    return {
+      access:    localStorage.getItem('sp_access_token'),
+      refresh:   localStorage.getItem('sp_refresh_token'),
+      expiresAt: parseInt(localStorage.getItem('sp_expires_at') || '0', 10)
+    };
+  },
+  set(access, refresh, expiresIn) {
+    localStorage.setItem('sp_access_token',  access);
+    if (refresh) localStorage.setItem('sp_refresh_token', refresh);
+    localStorage.setItem('sp_expires_at', Date.now() + expiresIn * 1000);
+  },
+  clear() {
+    localStorage.removeItem('sp_access_token');
+    localStorage.removeItem('sp_refresh_token');
+    localStorage.removeItem('sp_expires_at');
+  },
+  isConnected() {
+    const { access } = Token.get();
+    return !!access;
+  },
+  needsRefresh() {
+    const { expiresAt } = Token.get();
+    return expiresAt - Date.now() < 60_000;
+  }
+};
+
+// ── Refresh access token ──
+async function refreshAccessToken() {
+  const { refresh } = Token.get();
+  if (!refresh) throw new Error('No refresh token');
+
+  const res = await fetch('/api/refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: refresh })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Refresh failed');
+
+  Token.set(data.access_token, data.refresh_token || null, data.expires_in);
+  return data.access_token;
+}
+
+// ── Ensure we have a valid token ──
+async function getValidToken() {
+  if (Token.needsRefresh()) await refreshAccessToken();
+  return Token.get().access;
+}
+
+// ── Spotify auth flow ──
+async function connectSpotify() {
+  const configRes = await fetch('/api/config');
+  const { clientId } = await configRes.json();
+
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('spotify_state', state);
+
+  const params = new URLSearchParams({
+    client_id:     clientId,
+    response_type: 'code',
+    redirect_uri:  location.origin + '/callback',
+    scope:         SCOPES,
+    state
+  });
+
+  location.href = 'https://accounts.spotify.com/authorize?' + params;
+}
+
+function disconnectSpotify() {
+  Token.clear();
+  stopPolling();
+  updateSpotifyUI(false);
+  // Restore demo art
+  loadDemoArt();
+  trackTitle.textContent  = 'Nothing playing';
+  trackArtist.textContent = 'Connect Spotify to begin';
+}
+
+// ── UI sync ──
+function updateSpotifyUI(connected, statusText) {
+  if (connected) {
+    spotifyBtn.textContent = 'Disconnect';
+    spotifyBtn.classList.add('disconnect');
+    spotifyStatus.textContent = statusText || 'Connected';
+    spotifyStatus.classList.add('connected');
+  } else {
+    spotifyBtn.textContent = 'Connect Spotify';
+    spotifyBtn.classList.remove('disconnect');
+    spotifyStatus.textContent = 'Not connected · demo mode active';
+    spotifyStatus.classList.remove('connected');
+  }
+}
+
+spotifyBtn.addEventListener('click', () => {
+  if (Token.isConnected()) {
+    disconnectSpotify();
+  } else {
+    connectSpotify();
+  }
+});
+
+// ── Polling ──
+let pollTimer = null;
+let lastTrackId = null;
+
+async function poll() {
+  try {
+    const token = await getValidToken();
+    const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.status === 204 || res.status === 200 && res.headers.get('content-length') === '0') {
+      // Nothing playing — leave art as-is, just clear text
+      if (lastTrackId !== null) {
+        trackTitle.textContent  = 'Nothing playing';
+        trackArtist.textContent = '—';
+        lastTrackId = null;
+      }
+      return;
+    }
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        // Refresh and retry once
+        await refreshAccessToken();
+      }
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.item) return;
+
+    const trackId = data.item.id;
+    if (trackId === lastTrackId) return; // no change
+
+    lastTrackId = trackId;
+
+    const title  = data.item.name;
+    const artist = data.item.artists.map(a => a.name).join(', ');
+    const artUrl = data.item.album?.images?.[0]?.url;
+
+    if (artUrl) updateTrack(artUrl, title, artist);
+
+    spotifyStatus.textContent = 'Connected · polling';
+  } catch (e) {
+    console.warn('Spotify poll error:', e);
+  }
+}
+
+function startPolling() {
+  poll();
+  pollTimer = setInterval(poll, POLL_INTERVAL);
+}
+
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  lastTrackId = null;
+}
+
+// ── Startup ──
+if (Token.isConnected()) {
+  updateSpotifyUI(true, 'Connected · starting…');
+  startPolling();
+}
+</script>
+</body>
+</html>
