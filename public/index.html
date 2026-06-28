@@ -591,20 +591,20 @@
   }
 
   #fullscreen-btn {
-    position: absolute;
-    bottom: 3cqmin; right: 3cqmin;
-    background: none;
+    position: fixed;
+    top: 20px; right: 66px;
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.08);
     border: none;
-    color: rgba(255,255,255,0.18);
-    font-size: 3cqmin;
+    border-radius: 50%;
+    color: rgba(255,255,255,0.7);
+    font-size: 16px;
     cursor: pointer;
-    padding: 1cqmin;
-    line-height: 1;
-    transition: color 0.2s;
-    display: none;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 150;
+    transition: background 0.2s;
   }
-  #fullscreen-btn:hover { color: rgba(255,255,255,0.5); }
-  body.clock-idle #fullscreen-btn { display: block; }
+  #fullscreen-btn:hover { background: rgba(255,255,255,0.15); }
 
   /* ── Connect modal ── */
   #connect-modal {
@@ -757,7 +757,6 @@
         </div>
       </div>
       <div id="flip-date"></div>
-      <button id="fullscreen-btn" title="Fullscreen">⛶</button>
     </div>
     <canvas id="art-canvas"></canvas>
     <div id="mode-badge">Full</div>
@@ -777,6 +776,7 @@
 <div id="tap-hint">Tap artwork to change style</div>
 
 <!-- Settings button -->
+<button id="fullscreen-btn" title="Fullscreen" aria-label="Fullscreen">⛶</button>
 <button id="settings-btn" aria-label="Settings">
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08 0-.39-.03-.74-.07-1.08l2.32-1.81c.21-.16.27-.45.13-.69l-2.2-3.81c-.13-.24-.42-.32-.66-.24l-2.74 1.1c-.57-.44-1.18-.8-1.86-1.07l-.42-2.93A.532.532 0 0012 2h-4.4a.532.532 0 00-.53.45l-.42 2.93c-.68.27-1.29.63-1.86 1.07l-2.74-1.1c-.24-.08-.53 0-.66.24l-2.2 3.81c-.14.24-.08.53.13.69l2.32 1.81c-.04.34-.07.69-.07 1.08 0 .39.03.74.07 1.08L.46 14.58c-.21.16-.27.45-.13.69l2.2 3.81c.13.24.42.32.66.24l2.74-1.1c.57.44 1.18.8 1.86 1.07l.42 2.93c.08.46.49.78.97.78H12c.48 0 .89-.32.97-.78l.42-2.93c.68-.27 1.29-.63 1.86-1.07l2.74 1.1c.24.08.53 0 .66-.24l2.2-3.81c.13-.24.07-.53-.13-.69l-2.32-1.81z"/>
@@ -1254,6 +1254,7 @@ function applyInfoSetting() {
 document.getElementById('stage').addEventListener('click', (e) => {
   if (settingsPanel.classList.contains('open')) return;
   if (e.target.closest('#settings-btn')) return;
+  if (e.target.closest('#fullscreen-btn')) return;
 
   const idx = MODES.indexOf(state.mode);
   state.mode = MODES[(idx + 1) % MODES.length];
